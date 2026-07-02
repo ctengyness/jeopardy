@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JEOPARDY!</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root{
+  --bg-deep:#050a3d;
+  --board-1:#121bd6;
+  --board-2:#060a9e;
+  --gold:#f5c518;
+  --gold-soft:#ffe9a8;
+  --ink:#ffffff;
+  --muted:#aab3ff;
+  --danger:#e2432c;
+  --success:#2fb170;
+  --surface:#0c1257;
+  --surface-2:#161e8a;
+  --radius:10px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  font-family:'Inter',sans-serif;
+  background:radial-gradient(ellipse at top, #0a1266 0%, var(--bg-deep) 70%);
+  color:var(--ink);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+#root{min-height:100vh;display:flex;flex-direction:column;}
+.view{
+  opacity:0;
+  transform:translateY(14px) scale(.99);
+  transition:opacity .38s cubic-bezier(.2,.8,.2,1), transform .38s cubic-bezier(.2,.8,.2,1);
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+.view.active{opacity:1;transform:translateY(0) scale(1);}
+.view.leaving{opacity:0;transform:translateY(-10px) scale(.99);}
+
+.display{font-family:'Archivo Black',sans-serif;letter-spacing:.5px;}
+h1,h2,h3{margin:0;}
+
+/* ---------- top bar ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 28px;
+  background:linear-gradient(180deg, rgba(0,0,0,.25), transparent);
+}
+.brand{
+  font-family:'Archivo Black',sans-serif;
+  font-size:22px;color:var(--gold);
+  letter-spacing:1px;cursor:pointer;
+  text-shadow:0 2px 0 rgba(0,0,0,.4);
+}
+.btn{
+  font-family:'Inter',sans-serif;font-weight:700;font-size:14px;
+  border:none;border-radius:8px;padding:10px 18px;cursor:pointer;
+  transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  color:var(--ink);background:var(--surface-2);
+}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.12);}
+.btn:active{transform:translateY(0);}
+.btn.gold{background:var(--gold);color:#1a1400;}
+.btn.danger{background:var(--danger);}
+.btn.success{background:var(--success);}
+.btn.ghost{background:transparent;border:2px solid var(--surface-2);}
+.btn.small{padding:6px 12px;font-size:12px;border-radius:6px;}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;}
+
+/* ---------- HOME ---------- */
+.home-hero{
+  text-align:center;padding:36px 20px 12px;
+}
+.home-hero .display{
+  font-size:56px;color:var(--gold);
+  text-shadow:0 4px 0 rgba(0,0,0,.45);
+}
+.home-hero p{color:var(--muted);margin-top:6px;font-size:15px;}
+.board-grid-home{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:18px;padding:24px 32px 40px;max-width:1200px;margin:0 auto;width:100%;
+}
+.board-card{
+  background:linear-gradient(160deg,var(--surface),var(--surface-2));
+  border-radius:var(--radius);padding:18px;
+  border:2px solid rgba(255,255,255,.06);
+  display:flex;flex-direction:column;gap:10px;
+  transition:transform .2s ease, border-color .2s ease;
+}
+.board-card:hover{transform:translateY(-4px);border-color:var(--gold);}
+.board-card h3{font-size:18px;}
+.board-card .meta{color:var(--muted);font-size:12px;}
+.board-card.new{
+  align-items:center;justify-content:center;text-align:center;
+  border:2px dashed rgba(255,255,255,.25);background:transparent;cursor:pointer;
+  min-height:120px;
+}
+.board-card.new .plus{font-size:34px;color:var(--gold);font-family:'Archivo Black',sans-serif;}
+.empty-msg{text-align:center;color:var(--muted);padding:40px;}
+
+/* ---------- EDITOR ---------- */
+.editor-toolbar{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:14px 28px;background:rgba(0,0,0,.2);
+}
+.editor-toolbar input[type=text]{
+  font-family:'Archivo Black',sans-serif;font-size:18px;color:var(--gold);
+  background:transparent;border:none;border-bottom:2px solid var(--surface-2);
+  padding:6px 2px;outline:none;flex:1;min-width:180px;
+}
+.toggle-wrap{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);}
+.switch{position:relative;width:40px;height:22px;flex:none;}
+.switch input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:var(--surface-2);border-radius:22px;cursor:pointer;transition:.2s;}
+.slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+.switch input:checked + .slider{background:var(--success);}
+.switch input:checked + .slider:before{transform:translateX(18px);}
+
+.board-editor-grid{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:6px;
+  padding:20px 28px;max-width:1300px;margin:0 auto;width:100%;
+}
+.cat-header{
+  background:var(--board-1);border-radius:6px;padding:10px 8px;min-height:56px;
+  display:flex;align-items:center;justify-content:center;
+}
+.cat-header input{
+  width:100%;background:transparent;border:none;color:var(--ink);
+  font-family:'Archivo Black',sans-serif;font-size:13px;text-align:center;
+  text-transform:uppercase;outline:none;
+}
+.cat-header input::placeholder{color:rgba(255,255,255,.5);}
+.clue-cell{
+  background:linear-gradient(160deg,var(--board-1),var(--board-2));
+  border-radius:6px;min-height:78px;padding:8px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border:2px solid transparent;transition:border-color .15s ease, transform .15s ease;
+  position:relative;
+}
+.clue-cell:hover{border-color:var(--gold);transform:scale(1.02);}
+.clue-cell .val{font-family:'Archivo Black',sans-serif;color:var(--gold-soft);font-size:18px;}
+.clue-cell .snippet{font-size:10px;color:var(--muted);text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px;}
+.clue-cell .badges{position:absolute;top:4px;right:4px;display:flex;gap:3px;}
+.badge{font-size:9px;background:var(--gold);color:#1a1400;padding:1px 4px;border-radius:4px;font-weight:800;}
+
+.final-editor{
+  max-width:700px;margin:10px auto 30px;background:var(--surface);border-radius:var(--radius);
+  padding:20px;display:flex;flex-direction:column;gap:10px;
+}
+.final-editor h3{color:var(--gold);font-family:'Archivo Black',sans-serif;font-size:15px;}
+.field label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
+.field input[type=text],.field textarea,.field input[type=number]{
+  width:100%;background:var(--surface-2);border:1px solid rgba(255,255,255,.1);border-radius:6px;
+  color:var(--ink);padding:8px 10px;font-family:'Inter',sans-serif;font-size:14px;outline:none;
+}
+.field textarea{min-height:70px;resize:vertical;}
+.field{margin-bottom:10px;}
+
+/* ---------- MODAL ---------- */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(2,4,30,.78);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;z-index:50;
+  opacity:0;transition:opacity .25s ease;padding:16px;
+}
+.modal-overlay.show{opacity:1;}
+.modal-box{
+  background:linear-gradient(160deg,var(--surface),#0a1050);
+  border-radius:14px;padding:24px;max-width:560px;width:100%;
+  max-height:88vh;overflow-y:auto;
+  border:2px solid var(--surface-2);
+  transform:scale(.92);transition:transform .25s cubic-bezier(.2,.8,.2,1);
+}
+.modal-overlay.show .modal-box{transform:scale(1);}
+.modal-box h3{color:var(--gold);font-family:'Archivo Black',sans-serif;margin-bottom:14px;font-size:16px;}
+.image-preview{max-width:100%;max-height:160px;border-radius:8px;margin-top:8px;display:block;}
+.remove-img{margin-top:6px;}
+.checkbox-row{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;color:var(--muted);}
+
+/* ---------- TEAM SETUP ---------- */
+.team-setup-wrap{max-width:520px;margin:40px auto;padding:0 20px;flex:1;}
+.team-setup-wrap h2{font-family:'Archivo Black',sans-serif;color:var(--gold);text-align:center;margin-bottom:20px;}
+.add-team-row{display:flex;gap:10px;margin-bottom:20px;}
+.add-team-row input{
+  flex:1;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);
+  background:var(--surface-2);color:var(--ink);font-size:15px;outline:none;
+}
+.team-list{display:flex;flex-direction:column;gap:8px;margin-bottom:24px;}
+.team-list-item{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);padding:12px 16px;border-radius:8px;
+  border-left:4px solid var(--gold);
+}
+.team-list-item .name{font-weight:700;}
+
+/* ---------- PLAY BOARD ---------- */
+.play-wrap{flex:1;display:flex;flex-direction:column;padding:16px 20px 0;}
+.board-title-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 8px;}
+.board-title-row h2{font-family:'Archivo Black',sans-serif;color:var(--gold);font-size:18px;}
+.play-grid{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:6px;max-width:1300px;margin:0 auto;width:100%;flex:1;
+}
+.play-cat{
+  background:var(--board-1);border-radius:6px;display:flex;align-items:center;justify-content:center;
+  text-align:center;padding:10px 6px;font-family:'Archivo Black',sans-serif;font-size:12px;
+  text-transform:uppercase;min-height:56px;
+}
+.play-clue{
+  background:linear-gradient(160deg,var(--board-1),var(--board-2));
+  border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-family:'Archivo Black',sans-serif;font-size:26px;color:var(--gold-soft);
+  cursor:pointer;min-height:70px;
+  transition:transform .18s ease, filter .18s ease;
+  perspective:600px;
+}
+.play-clue:hover{transform:scale(1.03);filter:brightness(1.15);}
+.play-clue.used{
+  background:transparent;color:transparent;cursor:default;pointer-events:none;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.05);
+}
+.final-btn-wrap{text-align:center;margin:16px auto 4px;}
+
+/* scoreboard */
+.scoreboard{
+  display:flex;gap:12px;flex-wrap:wrap;justify-content:center;
+  padding:16px 20px 24px;
+}
+.team-card{
+  background:var(--surface);border-radius:10px;padding:12px 16px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;min-width:150px;
+  border-top:3px solid var(--gold);
+}
+.team-card .tname{font-weight:700;font-size:14px;color:var(--muted);}
+.team-card .tscore{font-family:'Archivo Black',sans-serif;font-size:26px;transition:color .2s ease, transform .2s ease;}
+.team-card .tscore.neg{color:var(--danger);}
+.tcontrols{display:flex;align-items:center;gap:8px;}
+.circle-btn{
+  width:34px;height:34px;border-radius:50%;border:none;font-size:18px;font-weight:800;
+  cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;
+  transition:transform .15s ease, filter .15s ease;
+}
+.circle-btn:hover{transform:scale(1.12);filter:brightness(1.15);}
+.circle-btn.plus{background:var(--success);}
+.circle-btn.minus{background:var(--danger);}
+.point-value-input{
+  width:64px;text-align:center;background:var(--surface-2);border:1px solid rgba(255,255,255,.15);
+  border-radius:6px;color:var(--ink);padding:4px;font-size:13px;
+}
+
+/* clue reveal overlay */
+.clue-overlay{
+  position:fixed;inset:0;background:radial-gradient(ellipse at center, var(--board-1) 0%, var(--board-2) 100%);
+  z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px;opacity:0;transition:opacity .3s ease;text-align:center;
+  overflow-y:auto;
+}
+.clue-overlay.show{opacity:1;}
+.clue-overlay .value-tag{font-family:'Archivo Black',sans-serif;color:var(--gold);font-size:20px;margin-bottom:18px;letter-spacing:2px;}
+.clue-overlay .qtext{font-family:'Archivo Black',sans-serif;font-size:clamp(22px,4vw,40px);max-width:900px;line-height:1.3;text-shadow:0 3px 0 rgba(0,0,0,.4);}
+.clue-overlay img{width:85vw;height:85vh;object-fit:contain;object-position:center;border-radius:10px;margin-top:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.clue-overlay .atext{color:var(--gold-soft);font-family:'Archivo Black',sans-serif;font-size:clamp(18px,3vw,30px);margin-top:22px;}
+.clue-overlay .actions{margin-top:30px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+.dd-burst{
+  font-family:'Archivo Black',sans-serif;font-size:clamp(30px,6vw,64px);color:var(--gold);
+  text-shadow:0 0 20px rgba(245,197,24,.7), 0 4px 0 rgba(0,0,0,.4);
+  animation:ddpop .5s cubic-bezier(.2,1.4,.4,1);
+}
+@keyframes ddpop{0%{transform:scale(.3) rotate(-8deg);opacity:0;}70%{transform:scale(1.1) rotate(2deg);opacity:1;}100%{transform:scale(1) rotate(0);}}
+.dd-form{margin-top:24px;display:flex;flex-direction:column;gap:12px;width:100%;max-width:340px;}
+.dd-form select,.dd-form input{padding:10px;border-radius:8px;border:none;font-size:15px;text-align:center;}
+
+/* final jeopardy */
+.final-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;}
+.final-wrap h2{font-family:'Archivo Black',sans-serif;color:var(--gold);font-size:26px;margin-bottom:22px;}
+.wager-grid{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-bottom:22px;}
+.wager-card{background:var(--surface);padding:16px;border-radius:10px;min-width:160px;}
+.wager-card .name{font-weight:700;margin-bottom:8px;}
+.wager-card input{width:100%;padding:8px;border-radius:6px;border:none;text-align:center;}
+.judge-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);padding:12px 18px;border-radius:8px;margin-bottom:8px;width:100%;max-width:420px;}
+
+/* game over */
+.gameover-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;}
+.gameover-wrap h1{font-family:'Archivo Black',sans-serif;color:var(--gold);font-size:40px;margin-bottom:6px;}
+.standings{display:flex;flex-direction:column;gap:10px;margin:24px 0;width:100%;max-width:420px;}
+.standing-row{display:flex;justify-content:space-between;background:var(--surface);padding:14px 20px;border-radius:8px;font-size:16px;}
+.standing-row.first{border:2px solid var(--gold);background:linear-gradient(90deg,var(--surface),#2a2400);}
+
+.hidden-file-input{display:none;}
+
+/* toast + confirm dialog */
+#toastLayer{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;align-items:center;}
+.toast{
+  background:var(--surface);border-left:4px solid var(--success);color:var(--ink);
+  padding:12px 18px;border-radius:8px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.4);
+  opacity:0;transform:translateY(-12px);transition:opacity .25s ease, transform .25s ease;
+  max-width:360px;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.error{border-left-color:var(--danger);}
+.confirm-box{max-width:380px;text-align:center;}
+.confirm-box p{margin:0 0 18px;font-size:15px;color:var(--ink);}
+.confirm-box .btn-row{justify-content:center;}
+::-webkit-scrollbar{width:10px;}
+::-webkit-scrollbar-thumb{background:var(--surface-2);border-radius:8px;}
+
+@media (max-width:820px){
+  .board-editor-grid,.play-grid{grid-template-columns:repeat(3,1fr);}
+  .clue-cell{min-height:64px;}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="modalLayer"></div>
+<div id="toastLayer"></div>
+
+<script>
+/* ======================= UTILITIES ======================= */
+function uid(){return 'id-'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);}
+function escapeHtml(s){
+  if(s===undefined||s===null) return '';
+  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatDate(ts){
+  if(!ts) return '';
+  const d=new Date(ts);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
+// Images are stored exactly as uploaded — no resizing or re-compression.
+function readImageFile(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve(e.target.result);
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ======================= TOAST / CONFIRM (native alert/confirm are blocked in sandboxed iframes) ======================= */
+function showToast(message, type){
+  const layer=document.getElementById('toastLayer');
+  const el=document.createElement('div');
+  el.className='toast'+(type==='error'?' error':'');
+  el.textContent=message;
+  layer.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{
+    el.classList.remove('show');
+    setTimeout(()=>el.remove(),300);
+  }, type==='error'? 4500 : 2400);
+}
+function showConfirm(message){
+  return new Promise(resolve=>{
+    const layer=document.getElementById('modalLayer');
+    layer.innerHTML=`
+      <div class="modal-overlay" id="confirmOverlay">
+        <div class="modal-box confirm-box">
+          <p>${escapeHtml(message)}</p>
+          <div class="btn-row">
+            <button class="btn danger" id="confirmYes">Yes</button>
+            <button class="btn ghost" id="confirmNo">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+    requestAnimationFrame(()=>document.getElementById('confirmOverlay').classList.add('show'));
+    const cleanup=(val)=>{ layer.innerHTML=''; resolve(val); };
+    document.getElementById('confirmYes').onclick=()=>cleanup(true);
+    document.getElementById('confirmNo').onclick=()=>cleanup(false);
+  });
+}
+
+/* ======================= STORAGE (in-memory only) ======================= */
+// This app is intentionally stateless: nothing persists across a page refresh.
+// A board only survives beyond the current page load via Export (file) / Import (file).
+const MemoryDB={ boards:{}, index:[] };
+const Store={
+  async getIndex(){ return MemoryDB.index.slice(); },
+  async setIndex(list){ MemoryDB.index=list; return true; },
+  async loadBoard(id){
+    const b=MemoryDB.boards[id];
+    return b? JSON.parse(JSON.stringify(b)) : null;
+  },
+  async saveBoard(board){
+    board.updatedAt=Date.now();
+    MemoryDB.boards[board.id]=JSON.parse(JSON.stringify(board));
+    const idx=MemoryDB.index.slice();
+    const i=idx.findIndex(b=>b.id===board.id);
+    const entry={id:board.id,name:board.name,updatedAt:board.updatedAt,catCount:board.categories.length};
+    if(i>-1) idx[i]=entry; else idx.push(entry);
+    MemoryDB.index=idx;
+    return {ok:true};
+  },
+  async deleteBoard(id){
+    delete MemoryDB.boards[id];
+    MemoryDB.index=MemoryDB.index.filter(b=>b.id!==id);
+    return true;
+  }
+};
+
+/* ======================= DATA MODEL ======================= */
+function newBoard(name){
+  return {
+    id:uid(),
+    name:name||'New Game Board',
+    hasDailyDouble:true,
+    hasFinalJeopardy:true,
+    categories:Array.from({length:6},()=>({
+      name:'',
+      clues:[200,400,600,800,1000].map(v=>({value:v,question:'',answer:'',image:null,isDailyDouble:false}))
+    })),
+    finalJeopardy:{category:'',question:'',answer:'',image:null},
+    updatedAt:Date.now()
+  };
+}
+
+/* ======================= APP STATE ======================= */
+const App={
+  state:{
+    view:'home',
+    boardsIndex:[],
+    board:null,
+    editorModal:null,
+    teams:[],
+    used:{},
+    activeClue:null,
+    activePointValue:200,
+    dd:null,
+    finalStage:null,
+    finalWagers:{},
+    finalJudged:{}
+  },
+
+  async init(){
+    this.state.boardsIndex = await Store.getIndex();
+    this.renderInto('home');
+  },
+
+  /* ---------- view transition ---------- */
+  renderInto(view){
+    this.state.view=view;
+    const root=document.getElementById('root');
+    const old=root.querySelector('.view.active');
+    const finish=()=>{
+      root.innerHTML='<div class="view">'+this.template()+'</div>';
+      const el=root.querySelector('.view');
+      requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('active')));
+    };
+    if(old){
+      old.classList.remove('active'); old.classList.add('leaving');
+      setTimeout(finish, 180);
+    } else { finish(); }
+  },
+  refresh(){ // re-render current view without full transition (for live updates like scores)
+    const root=document.getElementById('root');
+    root.innerHTML='<div class="view active">'+this.template()+'</div>';
+  },
+
+  template(){
+    switch(this.state.view){
+      case 'home': return this.tHome();
+      case 'editor': return this.tEditor();
+      case 'teamSetup': return this.tTeamSetup();
+      case 'play': return this.tPlay();
+      case 'final': return this.tFinal();
+      case 'gameover': return this.tGameOver();
+      default: return '';
+    }
+  },
+
+  goHome(){ this.state.board=null; this.state.teams=[]; this.state.used={}; this.renderInto('home'); },
+
+  /* ================= HOME ================= */
+  tHome(){
+    const boards=this.state.boardsIndex.slice().sort((a,b)=>b.updatedAt-a.updatedAt);
+    return `
+      <div class="topbar">
+        <div class="brand">JEOPARDY!</div>
+        <div class="btn-row">
+          <input type="file" id="importInput" accept="application/json,.json" class="hidden-file-input" onchange="App.importBoard(event)">
+          <label for="importInput" class="btn ghost" style="display:inline-flex;align-items:center;">Import Board</label>
+        </div>
+      </div>
+      <div class="home-hero">
+        <div class="display">Build your board.</div>
+        <p>Create categories, add questions, then play. Boards live only for this session — <strong style="color:var(--gold);">Export</strong> to keep one, <strong style="color:var(--gold);">Import</strong> to bring it back.</p>
+      </div>
+      <div class="board-grid-home">
+        <div class="board-card new" onclick="App.createBoard()">
+          <div class="plus">+</div>
+          <div>New Board</div>
+        </div>
+        ${boards.map(b=>`
+          <div class="board-card">
+            <h3>${escapeHtml(b.name)}</h3>
+            <div class="meta">${b.catCount} categories &middot; updated ${formatDate(b.updatedAt)}</div>
+            <div class="btn-row">
+              <button class="btn gold small" onclick="App.playBoard('${b.id}')">Play</button>
+              <button class="btn ghost small" onclick="App.editBoard('${b.id}')">Edit</button>
+              <button class="btn ghost small" onclick="App.exportBoard('${b.id}')">Export</button>
+              <button class="btn danger small" onclick="App.confirmDeleteBoard('${b.id}')">Delete</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      ${boards.length===0? '<div class="empty-msg">No boards yet — create one to get started, or import a saved file.</div>' : ''}
+    `;
+  },
+
+  async createBoard(){
+    this.state.board=newBoard();
+    const res=await Store.saveBoard(this.state.board);
+    if(!res.ok) showToast(res.error,'error');
+    this.state.boardsIndex=await Store.getIndex();
+    this.renderInto('editor');
+  },
+  async editBoard(id){
+    const b=await Store.loadBoard(id);
+    if(!b){ showToast('Could not load that board.','error'); return; }
+    this.state.board=b;
+    this.renderInto('editor');
+  },
+  async playBoard(id){
+    const b=await Store.loadBoard(id);
+    if(!b){ showToast('Could not load that board.','error'); return; }
+    this.state.board=b;
+    this.state.used={};
+    this.state.teams=[];
+    this.renderInto('teamSetup');
+  },
+  async exportBoard(id){
+    const b=await Store.loadBoard(id);
+    if(!b){ showToast('Could not load that board.','error'); return; }
+    const blob=new Blob([JSON.stringify(b,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=(b.name||'jeopardy-board').replace(/[^a-z0-9\-_ ]/gi,'')+'.json';
+    document.body.appendChild(a); a.click(); a.remove();
+  },
+  async confirmDeleteBoard(id){
+    const yes=await showConfirm('Delete this board? This cannot be undone.');
+    if(!yes) return;
+    const ok=await Store.deleteBoard(id);
+    if(!ok) showToast('Could not delete the board — storage error. Try again.','error');
+    this.state.boardsIndex=await Store.getIndex();
+    this.refresh();
+  },
+  importBoard(evt){
+    const file=evt.target.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=async e=>{
+      try{
+        const parsed=JSON.parse(e.target.result);
+        if(!parsed || typeof parsed!=='object' || !Array.isArray(parsed.categories)){
+          showToast('That file doesn\'t look like a valid board export.','error');
+          return;
+        }
+        // normalize against a fresh board so missing fields don't break anything
+        const base=newBoard(parsed.name || 'Imported Board');
+        const b={
+          ...base,
+          ...parsed,
+          id: uid(), // avoid colliding with an existing board
+          name: parsed.name || base.name,
+          categories: parsed.categories.length ? parsed.categories : base.categories,
+          finalJeopardy: parsed.finalJeopardy || base.finalJeopardy,
+          updatedAt: Date.now()
+        };
+        const res=await Store.saveBoard(b);
+        if(!res.ok){ showToast(res.error,'error'); return; }
+        this.state.boardsIndex=await Store.getIndex();
+        showToast('Board imported — available for this session.');
+        this.refresh();
+      }catch(err){
+        console.error('import failed', err);
+        showToast('That file could not be read as a board.','error');
+      }
+    };
+    reader.onerror=()=>showToast('Could not read that file.','error');
+    reader.readAsText(file);
+    evt.target.value='';
+  },
+
+  /* ================= EDITOR ================= */
+  tEditor(){
+    const b=this.state.board;
+    return `
+      <div class="editor-toolbar">
+        <button class="btn ghost small" onclick="App.leaveEditor()">&larr; Home</button>
+        <input type="text" value="${escapeHtml(b.name)}" placeholder="Board name" oninput="App.state.board.name=this.value">
+        <label class="toggle-wrap"><span class="switch"><input type="checkbox" ${b.hasDailyDouble?'checked':''} onchange="App.toggleFlag('hasDailyDouble',this.checked)"><span class="slider"></span></span> Daily Doubles</label>
+        <label class="toggle-wrap"><span class="switch"><input type="checkbox" ${b.hasFinalJeopardy?'checked':''} onchange="App.toggleFlag('hasFinalJeopardy',this.checked)"><span class="slider"></span></span> Final Jeopardy</label>
+        <div class="btn-row">
+          <button class="btn success small" onclick="App.saveEditor(this)">Save</button>
+          <button class="btn ghost small" onclick="App.exportCurrent()">Export</button>
+        </div>
+      </div>
+      <div class="board-editor-grid">
+        ${b.categories.map((cat,ci)=>`<div class="cat-header"><input type="text" value="${escapeHtml(cat.name)}" placeholder="Category ${ci+1}" oninput="App.state.board.categories[${ci}].name=this.value"></div>`).join('')}
+        ${[0,1,2,3,4].map(ri=> b.categories.map((cat,ci)=>{
+          const clue=cat.clues[ri];
+          const hasContent = clue.question || clue.answer;
+          return `<div class="clue-cell" onclick="App.openClueEditor(${ci},${ri})">
+            <div class="val">$${clue.value}</div>
+            <div class="snippet">${hasContent? escapeHtml(clue.question).slice(0,40) : 'Click to add'}</div>
+            <div class="badges">
+              ${clue.image? '<span class="badge">IMG</span>':''}
+              ${clue.isDailyDouble && b.hasDailyDouble? '<span class="badge">DD</span>':''}
+            </div>
+          </div>`;
+        }).join('') ).join('')}
+      </div>
+      ${b.hasFinalJeopardy? `
+        <div class="final-editor">
+          <h3>FINAL JEOPARDY</h3>
+          <div class="field"><label>Category</label><input type="text" value="${escapeHtml(b.finalJeopardy.category)}" oninput="App.state.board.finalJeopardy.category=this.value"></div>
+          <div class="field"><label>Clue</label><textarea oninput="App.state.board.finalJeopardy.question=this.value">${escapeHtml(b.finalJeopardy.question)}</textarea></div>
+          <div class="field"><label>Correct response</label><textarea oninput="App.state.board.finalJeopardy.answer=this.value">${escapeHtml(b.finalJeopardy.answer)}</textarea></div>
+          <div class="field">
+            <label>Image (optional)</label>
+            <input type="file" accept="image/*" onchange="App.handleFinalImage(event)">
+            ${b.finalJeopardy.image? `<img class="image-preview" src="${b.finalJeopardy.image}"><br><button class="btn danger small remove-img" onclick="App.state.board.finalJeopardy.image=null; App.refresh();">Remove image</button>` : ''}
+          </div>
+        </div>
+      ` : ''}
+    `;
+  },
+  toggleFlag(key,val){ this.state.board[key]=val; this.refresh(); },
+  async saveEditor(btn){
+    const orig=btn? btn.textContent : null;
+    if(btn){ btn.textContent='Saving…'; btn.disabled=true; }
+    const res=await Store.saveBoard(this.state.board);
+    this.state.boardsIndex=await Store.getIndex();
+    if(btn){ btn.disabled=false; btn.textContent=orig; }
+    if(res.ok) showToast('Board saved.');
+    else showToast(res.error,'error');
+  },
+  async exportCurrent(){
+    const res=await Store.saveBoard(this.state.board);
+    if(!res.ok) showToast(res.error,'error');
+    this.exportBoard(this.state.board.id);
+  },
+  async leaveEditor(){
+    const res=await Store.saveBoard(this.state.board);
+    if(!res.ok) showToast(res.error,'error');
+    this.state.boardsIndex=await Store.getIndex();
+    this.goHome();
+  },
+  async handleFinalImage(evt){
+    const file=evt.target.files[0];
+    if(!file) return;
+    const dataUrl=await readImageFile(file);
+    this.state.board.finalJeopardy.image=dataUrl;
+    this.refresh();
+  },
+
+  openClueEditor(ci,ri){
+    const clue=this.state.board.categories[ci].clues[ri];
+    this.state.editorModal={ci,ri,data:JSON.parse(JSON.stringify(clue))};
+    this.renderModal();
+  },
+  closeModal(){ this.state.editorModal=null; document.getElementById('modalLayer').innerHTML=''; },
+  renderModal(){
+    const layer=document.getElementById('modalLayer');
+    const m=this.state.editorModal;
+    if(!m){ layer.innerHTML=''; return; }
+    const d=m.data;
+    layer.innerHTML=`
+      <div class="modal-overlay" id="clueModalOverlay">
+        <div class="modal-box">
+          <h3>Edit Clue — $${d.value}</h3>
+          <div class="field"><label>Point value</label><input type="number" step="50" value="${d.value}" oninput="App.state.editorModal.data.value=Number(this.value)"></div>
+          <div class="field"><label>Clue (shown to players)</label><textarea oninput="App.state.editorModal.data.question=this.value">${escapeHtml(d.question)}</textarea></div>
+          <div class="field"><label>Correct response</label><textarea oninput="App.state.editorModal.data.answer=this.value">${escapeHtml(d.answer)}</textarea></div>
+          <div class="field">
+            <label>Image (optional)</label>
+            <input type="file" accept="image/*" onchange="App.handleClueImage(event)">
+            ${d.image? `<img class="image-preview" src="${d.image}"><br><button class="btn danger small remove-img" onclick="App.state.editorModal.data.image=null; App.renderModal();">Remove image</button>`:''}
+          </div>
+          ${this.state.board.hasDailyDouble? `
+            <div class="checkbox-row">
+              <input type="checkbox" id="ddcheck" ${d.isDailyDouble?'checked':''} onchange="App.state.editorModal.data.isDailyDouble=this.checked">
+              <label for="ddcheck">Mark as Daily Double</label>
+            </div>` : ''}
+          <div class="btn-row" style="margin-top:16px;">
+            <button class="btn success" onclick="App.saveClueEditor()">Save Clue</button>
+            <button class="btn ghost" onclick="App.closeModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    `;
+    requestAnimationFrame(()=>document.getElementById('clueModalOverlay').classList.add('show'));
+  },
+  async handleClueImage(evt){
+    const file=evt.target.files[0];
+    if(!file) return;
+    const dataUrl=await readImageFile(file);
+    this.state.editorModal.data.image=dataUrl;
+    this.renderModal();
+  },
+  saveClueEditor(){
+    const {ci,ri,data}=this.state.editorModal;
+    this.state.board.categories[ci].clues[ri]=data;
+    this.closeModal();
+    this.refresh();
+  },
+
+  /* ================= TEAM SETUP ================= */
+  tTeamSetup(){
+    return `
+      <div class="topbar"><div class="brand" onclick="App.goHome()">JEOPARDY!</div></div>
+      <div class="team-setup-wrap">
+        <h2>Add Teams</h2>
+        <div class="add-team-row">
+          <input type="text" id="teamNameInput" placeholder="Team name" onkeydown="if(event.key==='Enter')App.addTeam()">
+          <button class="btn gold" onclick="App.addTeam()">Add</button>
+        </div>
+        <div class="team-list">
+          ${this.state.teams.map(t=>`
+            <div class="team-list-item">
+              <span class="name">${escapeHtml(t.name)}</span>
+              <button class="btn danger small" onclick="App.removeTeam('${t.id}')">Remove</button>
+            </div>`).join('') || '<div class="empty-msg">No teams yet.</div>'}
+        </div>
+        <div class="btn-row" style="justify-content:center;">
+          <button class="btn success" ${this.state.teams.length<1?'disabled':''} onclick="App.startGame()">Start Game</button>
+        </div>
+      </div>
+    `;
+  },
+  addTeam(){
+    const input=document.getElementById('teamNameInput');
+    const name=input.value.trim();
+    if(!name) return;
+    this.state.teams.push({id:uid(),name,score:0});
+    input.value='';
+    this.refresh();
+    document.getElementById('teamNameInput').focus();
+  },
+  removeTeam(id){
+    this.state.teams=this.state.teams.filter(t=>t.id!==id);
+    this.refresh();
+  },
+  startGame(){
+    this.state.used={};
+    this.state.activePointValue=200;
+    this.renderInto('play');
+  },
+
+  /* ================= PLAY ================= */
+  allCluesUsed(){
+    const b=this.state.board;
+    let total=0;
+    b.categories.forEach((c,ci)=>c.clues.forEach((cl,ri)=>{ total++; }));
+    return Object.keys(this.state.used).length>=total;
+  },
+  tPlay(){
+    const b=this.state.board;
+    return `
+      <div class="play-wrap">
+        <div class="board-title-row">
+          <h2>${escapeHtml(b.name)}</h2>
+          <button class="btn ghost small" onclick="App.confirmEndGame()">End Game</button>
+        </div>
+        <div class="play-grid">
+          ${b.categories.map(c=>`<div class="play-cat">${escapeHtml(c.name)||'&nbsp;'}</div>`).join('')}
+          ${[0,1,2,3,4].map(ri=> b.categories.map((c,ci)=>{
+            const key=ci+'-'+ri;
+            const used=this.state.used[key];
+            return `<div class="play-clue ${used?'used':''}" ${used?'':`onclick="App.openClue(${ci},${ri})"`}>${used?'':'$'+c.clues[ri].value}</div>`;
+          }).join('')).join('')}
+        </div>
+        ${b.hasFinalJeopardy? `<div class="final-btn-wrap"><button class="btn gold" onclick="App.startFinal()">Final Jeopardy</button></div>`:''}
+      </div>
+      <div class="scoreboard">
+        ${this.state.teams.map(t=>`
+          <div class="team-card">
+            <div class="tname">${escapeHtml(t.name)}</div>
+            <div class="tscore ${t.score<0?'neg':''}">${t.score}</div>
+            <div class="tcontrols">
+              <button class="circle-btn minus" onclick="App.adjustScore('${t.id}',-1)">&minus;</button>
+              <input class="point-value-input" type="number" value="${this.state.activePointValue}" oninput="App.state.activePointValue=Number(this.value)">
+              <button class="circle-btn plus" onclick="App.adjustScore('${t.id}',1)">+</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  },
+  adjustScore(teamId,sign){
+    const t=this.state.teams.find(t=>t.id===teamId);
+    if(!t) return;
+    t.score += sign*(this.state.activePointValue||0);
+    this.refresh();
+  },
+  async confirmEndGame(){
+    const yes=await showConfirm('End the game and see final scores?');
+    if(yes) this.renderInto('gameover');
+  },
+
+  openClue(ci,ri){
+    const clue=this.state.board.categories[ci].clues[ri];
+    const key=ci+'-'+ri;
+    if(clue.isDailyDouble && this.state.board.hasDailyDouble){
+      this.state.dd={ci,ri,key,stage:'wager',teamId:this.state.teams[0]?.id||null,wager:clue.value};
+    } else {
+      this.state.dd=null;
+      this.state.activeClue={ci,ri,key,revealedAnswer:false,value:clue.value};
+      this.state.activePointValue=clue.value;
+    }
+    this.renderClueOverlay();
+  },
+  renderClueOverlay(){
+    const layer=document.getElementById('modalLayer');
+    const b=this.state.board;
+
+    if(this.state.dd){
+      const dd=this.state.dd;
+      const clue=b.categories[dd.ci].clues[dd.ri];
+      if(dd.stage==='wager'){
+        layer.innerHTML=`
+          <div class="clue-overlay show">
+            <div class="dd-burst">DAILY DOUBLE</div>
+            <div class="dd-form">
+              <label style="font-size:13px;color:var(--muted);">Who's answering?</label>
+              <select id="ddTeamSelect">
+                ${this.state.teams.map(t=>`<option value="${t.id}" ${t.id===dd.teamId?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}
+              </select>
+              <label style="font-size:13px;color:var(--muted);">Wager</label>
+              <input type="number" id="ddWagerInput" value="${dd.wager}">
+              <button class="btn gold" onclick="App.confirmDailyDouble()">Reveal Clue</button>
+              <button class="btn ghost small" onclick="App.cancelClue()">Cancel</button>
+            </div>
+          </div>`;
+        return;
+      }
+    }
+
+    const ac=this.state.activeClue;
+    if(!ac){ layer.innerHTML=''; return; }
+    const clue=b.categories[ac.ci].clues[ac.ri];
+    layer.innerHTML=`
+      <div class="clue-overlay show">
+        <div class="value-tag">${b.categories[ac.ci].name || 'CLUE'} — $${ac.value}</div>
+        <div class="qtext">${escapeHtml(clue.question)}</div>
+        ${clue.image? `<img src="${clue.image}">`:''}
+        ${ac.revealedAnswer? `<div class="atext">${escapeHtml(clue.answer)}</div>`:''}
+        <div class="actions">
+          ${!ac.revealedAnswer? `<button class="btn gold" onclick="App.revealAnswer()">Reveal Answer</button>`:''}
+          <button class="btn ghost" onclick="App.closeClue()">Close ${ac.revealedAnswer?'':'/ Skip'}</button>
+        </div>
+      </div>
+    `;
+  },
+  confirmDailyDouble(){
+    const teamId=document.getElementById('ddTeamSelect').value;
+    const wager=Number(document.getElementById('ddWagerInput').value)||0;
+    const dd=this.state.dd;
+    this.state.dd=null;
+    this.state.activeClue={ci:dd.ci,ri:dd.ri,key:dd.key,revealedAnswer:false,value:wager};
+    this.state.activePointValue=wager;
+    // pre-select the answering team visually by moving them first isn't necessary; host uses scoreboard.
+    this.renderClueOverlay();
+  },
+  cancelClue(){
+    this.state.dd=null;
+    this.state.activeClue=null;
+    document.getElementById('modalLayer').innerHTML='';
+  },
+  revealAnswer(){
+    this.state.activeClue.revealedAnswer=true;
+    this.renderClueOverlay();
+  },
+  closeClue(){
+    if(this.state.activeClue){
+      this.state.used[this.state.activeClue.key]=true;
+    }
+    this.state.activeClue=null;
+    document.getElementById('modalLayer').innerHTML='';
+    this.refresh();
+  },
+
+  /* ================= FINAL JEOPARDY ================= */
+  startFinal(){
+    this.state.finalStage='wager';
+    this.state.finalWagers={};
+    this.state.teams.forEach(t=>this.state.finalWagers[t.id]=0);
+    this.state.finalJudged={};
+    this.renderInto('final');
+  },
+  tFinal(){
+    const b=this.state.board;
+    const fj=b.finalJeopardy;
+    if(this.state.finalStage==='wager'){
+      return `
+        <div class="final-wrap">
+          <h2>FINAL JEOPARDY — ${escapeHtml(fj.category)||'Category'}</h2>
+          <p style="color:var(--muted);margin-bottom:10px;">Enter each team's wager, then reveal the clue.</p>
+          <div class="wager-grid">
+            ${this.state.teams.map(t=>`
+              <div class="wager-card">
+                <div class="name">${escapeHtml(t.name)}</div>
+                <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Score: ${t.score}</div>
+                <input type="number" value="${this.state.finalWagers[t.id]}" oninput="App.state.finalWagers['${t.id}']=Number(this.value)">
+              </div>
+            `).join('')}
+          </div>
+          <div class="btn-row">
+            <button class="btn gold" onclick="App.state.finalStage='clue'; App.refresh();">Reveal Clue</button>
+            <button class="btn ghost" onclick="App.renderInto('play')">Back to Board</button>
+          </div>
+        </div>
+      `;
+    }
+    if(this.state.finalStage==='clue'){
+      return `
+        <div class="final-wrap">
+          <div class="value-tag" style="color:var(--gold);font-family:'Archivo Black',sans-serif;margin-bottom:14px;">${escapeHtml(fj.category)}</div>
+          <div class="qtext" style="font-family:'Archivo Black',sans-serif;font-size:clamp(20px,3.4vw,34px);max-width:820px;">${escapeHtml(fj.question)}</div>
+          ${fj.image? `<img src="${fj.image}" style="width:85vw;height:85vh;object-fit:contain;object-position:center;border-radius:10px;margin-top:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);">`:''}
+          <div class="btn-row" style="margin-top:26px;">
+            <button class="btn gold" onclick="App.state.finalStage='answer'; App.refresh();">Reveal Answer</button>
+          </div>
+        </div>
+      `;
+    }
+    // answer / judge stage
+    return `
+      <div class="final-wrap">
+        <div class="value-tag" style="color:var(--gold);font-family:'Archivo Black',sans-serif;">${escapeHtml(fj.category)}</div>
+        <div class="atext" style="font-family:'Archivo Black',sans-serif;color:var(--gold-soft);font-size:clamp(18px,3vw,28px);margin:16px 0 26px;">${escapeHtml(fj.answer)}</div>
+        ${this.state.teams.map(t=>{
+          const judged=this.state.finalJudged[t.id];
+          return `<div class="judge-row">
+            <span>${escapeHtml(t.name)} — wager $${this.state.finalWagers[t.id]||0} — score ${t.score}</span>
+            <span class="btn-row">
+              <button class="btn success small" ${judged?'disabled':''} onclick="App.judgeFinal('${t.id}',true)">Correct</button>
+              <button class="btn danger small" ${judged?'disabled':''} onclick="App.judgeFinal('${t.id}',false)">Incorrect</button>
+            </span>
+          </div>`;
+        }).join('')}
+        <div class="btn-row" style="margin-top:24px;">
+          <button class="btn gold" onclick="App.renderInto('gameover')">See Final Standings</button>
+        </div>
+      </div>
+    `;
+  },
+  judgeFinal(teamId,correct){
+    const t=this.state.teams.find(t=>t.id===teamId);
+    const wager=this.state.finalWagers[teamId]||0;
+    if(t){ t.score += correct? wager : -wager; }
+    this.state.finalJudged[teamId]=true;
+    this.refresh();
+  },
+
+  /* ================= GAME OVER ================= */
+  tGameOver(){
+    const sorted=this.state.teams.slice().sort((a,b)=>b.score-a.score);
+    return `
+      <div class="gameover-wrap">
+        <h1>GAME OVER</h1>
+        <p style="color:var(--muted);">Final standings</p>
+        <div class="standings">
+          ${sorted.map((t,i)=>`
+            <div class="standing-row ${i===0?'first':''}">
+              <span>${i===0?'🏆 ':''}${escapeHtml(t.name)}</span>
+              <span>${t.score}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="btn-row">
+          <button class="btn gold" onclick="App.renderInto('teamSetup')">Play Again</button>
+          <button class="btn ghost" onclick="App.goHome()">Home</button>
+        </div>
+      </div>
+    `;
+  }
+};
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    if(App.state.editorModal) App.closeModal();
+    else if(App.state.activeClue || App.state.dd) App.cancelClue();
+  }
+});
+
+App.init();
+</script>
+</body>
+</html>
